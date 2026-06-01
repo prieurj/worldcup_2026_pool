@@ -1,0 +1,27 @@
+name: Fetch Match Results
+
+on:
+  schedule:
+    # Every 2 hours during World Cup (Jun 11 - Jul 19, 2026)
+    - cron: '0 */2 * 6-7 *'
+  workflow_dispatch: # Allow manual trigger from GitHub Actions tab
+
+jobs:
+  fetch-results:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests supabase
+
+      - name: Fetch and update results
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+        run: python fetch_results.py
