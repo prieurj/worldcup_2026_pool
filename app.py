@@ -123,9 +123,9 @@ def login_page():
 def group_predictions_page():
     st.title("📋 Group Stage Predictions")
 
-    locked = is_locked()
+    locked = is_locked("group")
     if locked:
-        st.warning("🔒 Predictions are locked. You can view but not edit.")
+        st.warning("🔒 Group stage predictions are locked. You can view but not edit.")
 
     username = st.session_state.user["username"]
     existing_preds = get_user_predictions(username)
@@ -193,9 +193,9 @@ def group_predictions_page():
 def knockout_bracket_page():
     st.title("🏆 Knockout Bracket")
 
-    locked = is_locked()
+    locked = is_locked("knockout")
     if locked:
-        st.warning("🔒 Predictions are locked.")
+        st.warning("🔒 Knockout predictions are locked.")
 
     username = st.session_state.user["username"]
     user_preds = get_user_predictions(username)
@@ -306,25 +306,49 @@ def leaderboard_page():
         st.info("No participants yet or no official results entered.")
         return
 
-    df = pd.DataFrame(board)
-    df.index = range(1, len(df) + 1)
-    df.columns = ["Player", "Total Points", "Exact Scores (3pts)", "Correct Outcomes (1pt)"]
-    st.dataframe(df, use_container_width=True)
+    # Overall leaderboard
+    st.subheader("Overall")
+    overall = sorted(board, key=lambda x: x["total"], reverse=True)
+    overall_df = pd.DataFrame([{"Player": r["username"], "Total Points": r["total"], "Group Pts": r["group_points"], "Knockout Pts": r["ko_points"]} for r in overall])
+    overall_df.index = range(1, len(overall_df) + 1)
+    st.dataframe(overall_df, use_container_width=True)
 
+    # Group stage leaderboard
+    st.subheader("Phase 1: Group Stage")
+    group_board = sorted(board, key=lambda x: x["group_points"], reverse=True)
+    group_df = pd.DataFrame([{"Player": r["username"], "Points": r["group_points"], "Exact Scores (3pts)": r["group_exact"], "Correct Outcomes (1pt)": r["group_correct"]} for r in group_board])
+    group_df.index = range(1, len(group_df) + 1)
+    st.dataframe(group_df, use_container_width=True)
+
+    # Knockout stage leaderboard
+    st.subheader("Phase 2: Knockout Stage")
+    ko_board = sorted(board, key=lambda x: x["ko_points"], reverse=True)
+    ko_df = pd.DataFrame([{"Player": r["username"], "Points": r["ko_points"], "Exact Scores (3pts)": r["ko_exact"], "Correct Outcomes (1pt)": r["ko_correct"]} for r in ko_board])
+    ko_df.index = range(1, len(ko_df) + 1)
+    st.dataframe(ko_df, use_container_width=True)
+
+    # Current user's breakdown
     username = st.session_state.user["username"]
     if not st.session_state.user["is_admin"]:
         st.subheader("Your Detailed Results")
         result = calculate_user_total(username)
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Total Points", result["total"])
-        col2.metric("Exact Scores", result["exact"])
-        col3.metric("Correct Outcomes", result["correct_outcome"])
-        col4.metric("Wrong", result["wrong"])
 
-        if result["details"]:
-            details_df = pd.DataFrame(result["details"])
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Points", result["total"])
+        col2.metric("Group Stage", result["group_total"])
+        col3.metric("Knockout Stage", result["ko_total"])
+
+        if result["group_details"]:
+            st.caption("Group Stage")
+            details_df = pd.DataFrame(result["group_details"])
             details_df.columns = ["Match", "Your Prediction", "Actual Result", "Points"]
             st.dataframe(details_df, use_container_width=True, hide_index=True)
+
+        if result["ko_details"]:
+            st.caption("Knockout Stage")
+            ko_details_df = pd.DataFrame(result["ko_details"])
+            ko_details_df.columns = ["Match", "Your Prediction", "Actual Result", "Points"]
+            st.dataframe(ko_details_df, use_container_width=True, hide_index=True)
 
 
 # --- Admin Panel ---
@@ -377,16 +401,32 @@ def admin_page():
             st.success(f"Official results for Group {selected_group} saved!")
 
     with tab2:
-        st.subheader("Prediction Lock")
-        current_lock = is_locked()
-        st.write(f"Current status: {'🔒 LOCKED' if current_lock else '🔓 UNLOCKED'}")
-        if current_lock:
-            if st.button("🔓 Unlock Predictions"):
-                set_locked(False)
+        st.subheader("Prediction Locks")
+
+        st.markdown("**Group Stage**")
+        group_lock = is_locked("group")
+        st.write(f"Status: {'🔒 LOCKED' if group_lock else '🔓 UNLOCKED'}")
+        if group_lock:
+            if st.button("🔓 Unlock Group Stage"):
+                set_locked("group", False)
                 st.rerun()
         else:
-            if st.button("🔒 Lock Predictions (before tournament starts)"):
-                set_locked(True)
+            if st.button("🔒 Lock Group Stage"):
+                set_locked("group", True)
+                st.rerun()
+
+        st.divider()
+
+        st.markdown("**Knockout Stage**")
+        ko_lock = is_locked("knockout")
+        st.write(f"Status: {'🔒 LOCKED' if ko_lock else '🔓 UNLOCKED'}")
+        if ko_lock:
+            if st.button("🔓 Unlock Knockout Stage"):
+                set_locked("knockout", False)
+                st.rerun()
+        else:
+            if st.button("🔒 Lock Knockout Stage"):
+                set_locked("knockout", True)
                 st.rerun()
 
     with tab3:

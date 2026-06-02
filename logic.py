@@ -119,34 +119,78 @@ def _outcome(home: int, away: int) -> str:
 
 
 def calculate_user_total(username: str) -> dict:
+    """Calculate total points split by group stage and knockout stage."""
     sb = get_supabase()
 
+    # Group stage predictions
     preds_resp = sb.table("predictions").select("match_id, home_score, away_score").eq("username", username).execute()
     user_preds = {r["match_id"]: (r["home_score"], r["away_score"]) for r in preds_resp.data}
 
+    # Knockout predictions
+    ko_resp = sb.table("knockout_predictions").select("round, match_index, field, value").eq("username", username).execute()
+    ko_preds = {}
+    for r in ko_resp.data:
+        ko_preds[(r["round"], r["match_index"], r["field"])] = r["value"]
+
+    # Official group results
     official_resp = sb.table("official_results").select("match_id, home_score, away_score").execute()
     official = {r["match_id"]: (r["home_score"], r["away_score"]) for r in official_resp.data}
 
-    total = exact = correct_outcome = wrong = 0
-    details = []
+    # Official knockout results
+    ko_official_resp = sb.table("official_knockout_results").select("round, match_index, home_score, away_score").execute()
+    ko_official = {(r["round"], r["match_index"]): (r["home_score"], r["away_score"]) for r in ko_official_resp.data}
 
+    # Score group stage
+    group_total = group_exact = group_correct = group_wrong = 0
+    group_details = []
     for mid, (oh, oa) in official.items():
         if mid in user_preds:
             ph, pa = user_preds[mid]
             pts = calculate_match_points(ph, pa, oh, oa)
-            total += pts
+            group_total += pts
             if pts == 3:
-                exact += 1
+                group_exact += 1
             elif pts == 1:
-                correct_outcome += 1
+                group_correct += 1
             else:
-                wrong += 1
-            details.append({"match_id": mid, "predicted": f"{ph}-{pa}", "actual": f"{oh}-{oa}", "points": pts})
+                group_wrong += 1
+            group_details.append({"match_id": mid, "predicted": f"{ph}-{pa}", "actual": f"{oh}-{oa}", "points": pts})
 
-    return {"total": total, "exact": exact, "correct_outcome": correct_outcome, "wrong": wrong, "details": details}
+    # Score knockout stage
+    ko_total = ko_exact = ko_correct = ko_wrong = 0
+    ko_details = []
+    for (rnd, idx), (oh, oa) in ko_official.items():
+        ph_key = (rnd, idx, "home")
+        pa_key = (rnd, idx, "away")
+        if ph_key in ko_preds and pa_key in ko_preds:
+            try:
+                ph = int(ko_preds[ph_key])
+                pa = int(ko_preds[pa_key])
+            except (ValueError, TypeError):
+                continue
+            pts = calculate_match_points(ph, pa, oh, oa)
+            ko_total += pts
+            if pts == 3:
+                ko_exact += 1
+            elif pts == 1:
+                ko_correct += 1
+            else:
+                ko_wrong += 1
+            ko_details.append({"match_id": f"{rnd} #{idx+1}", "predicted": f"{ph}-{pa}", "actual": f"{oh}-{oa}", "points": pts})
+
+    return {
+        "group_total": group_total, "group_exact": group_exact,
+        "group_correct": group_correct, "group_wrong": group_wrong,
+        "group_details": group_details,
+        "ko_total": ko_total, "ko_exact": ko_exact,
+        "ko_correct": ko_correct, "ko_wrong": ko_wrong,
+        "ko_details": ko_details,
+        "total": group_total + ko_total,
+    }
 
 
-def get_leaderboard() -> list:
+def get_leaderboard() -> dict:
+    """Get leaderboard split by group and knockout stages."""
     sb = get_supabase()
     users_resp = sb.table("users").select("username").eq("is_admin", False).execute()
     users = [r["username"] for r in users_resp.data]
@@ -154,9 +198,17 @@ def get_leaderboard() -> list:
     board = []
     for u in users:
         result = calculate_user_total(u)
-        board.append({"username": u, "points": result["total"], "exact": result["exact"], "correct": result["correct_outcome"]})
+        board.append({
+            "username": u,
+            "group_points": result["group_total"],
+            "ko_points": result["ko_total"],
+            "total": result["total"],
+            "group_exact": result["group_exact"],
+            "group_correct": result["group_correct"],
+            "ko_exact": result["ko_exact"],
+            "ko_correct": result["ko_correct"],
+        })
 
-    board.sort(key=lambda x: x["points"], reverse=True)
     return board
 
 
@@ -212,17 +264,17 @@ def get_official_results() -> dict:
     return {r["match_id"]: (r["home_score"], r["away_score"]) for r in resp.data}
 
 
-def is_locked() -> bool:
+def is_locked(phase: str = "group") -> bool:
     sb = get_supabase()
-    resp = sb.table("settings").select("value").eq("key", "locked").execute()
+    resp = sb.table("settings").select("value").eq("key", f"locked_{phase}").execute()
     if resp.data:
         return resp.data[0]["value"] == "1"
     return False
 
 
-def set_locked(locked: bool):
+def set_locked(phase: str, locked: bool):
     sb = get_supabase()
-    sb.table("settings").upsert({"key": "locked", "value": "1" if locked else "0"}).execute()
+    sb.table("settings").upsert({"key": f"locked_{phase}", "value": "1" if locked else "0"}).execute()
 
 
 def get_db():
