@@ -450,6 +450,7 @@ def admin_page():
                 user_preds = get_user_predictions(selected_user)
                 ko_preds = get_user_knockout_predictions(selected_user)
 
+                # Build group predictions sheet
                 group_rows = []
                 for match in GROUP_MATCHES:
                     mid = match["match_id"]
@@ -466,20 +467,60 @@ def admin_page():
                     })
                 group_df = pd.DataFrame(group_rows)
 
+                # Build knockout predictions sheet
+                # Reconstruct the bracket from the user's group predictions
+                r32_matchups = get_knockout_teams_from_predictions(user_preds)
+                r32_teams = [(team_a, team_b) for (_, team_a, team_b) in r32_matchups]
+
+                def get_round_winners(round_name, matchups):
+                    winners = []
+                    for i, (team_a, team_b) in enumerate(matchups):
+                        h = ko_preds.get((round_name, i, "home"), 0)
+                        a = ko_preds.get((round_name, i, "away"), 0)
+                        winner = ko_preds.get((round_name, i, "winner"), "TBD")
+                        winners.append(winner)
+                    return winners
+
                 ko_rows = []
-                for (round_name, match_idx, field), val in sorted(ko_preds.items()):
-                    if field == "winner":
-                        home = ko_preds.get((round_name, match_idx, "home"), "")
-                        away = ko_preds.get((round_name, match_idx, "away"), "")
+                all_knockout_rounds = [
+                    ("Round of 32", r32_teams),
+                ]
+
+                # Build each subsequent round from previous winners
+                r32_winners = get_round_winners("Round of 32", r32_teams)
+                r16_teams = [(r32_winners[i], r32_winners[i+1]) for i in range(0, len(r32_winners), 2)]
+                all_knockout_rounds.append(("Round of 16", r16_teams))
+
+                r16_winners = get_round_winners("Round of 16", r16_teams)
+                qf_teams = [(r16_winners[i], r16_winners[i+1]) for i in range(0, len(r16_winners), 2)]
+                all_knockout_rounds.append(("Quarter-Finals", qf_teams))
+
+                qf_winners = get_round_winners("Quarter-Finals", qf_teams)
+                sf_teams = [(qf_winners[i], qf_winners[i+1]) for i in range(0, len(qf_winners), 2)]
+                all_knockout_rounds.append(("Semi-Finals", sf_teams))
+
+                sf_winners = get_round_winners("Semi-Finals", sf_teams)
+                if len(sf_winners) >= 2:
+                    final_teams = [(sf_winners[0], sf_winners[1])]
+                    all_knockout_rounds.append(("🏆 Final", final_teams))
+
+                for round_name, matchups in all_knockout_rounds:
+                    for i, (team_a, team_b) in enumerate(matchups):
+                        h = ko_preds.get((round_name, i, "home"), "")
+                        a = ko_preds.get((round_name, i, "away"), "")
+                        winner = ko_preds.get((round_name, i, "winner"), "")
                         ko_rows.append({
                             "Round": round_name,
-                            "Match #": match_idx + 1,
-                            "Home Score": home,
-                            "Away Score": away,
-                            "Winner": val,
+                            "Match #": i + 1,
+                            "Home Team": team_a,
+                            "Home Score": h,
+                            "Away Score": a,
+                            "Away Team": team_b,
+                            "Winner": winner,
                         })
                 ko_df = pd.DataFrame(ko_rows)
 
+                # Write to Excel
                 output = BytesIO()
                 with pd.ExcelWriter(output, engine="openpyxl") as writer:
                     group_df.to_excel(writer, sheet_name="Group Predictions", index=False)
