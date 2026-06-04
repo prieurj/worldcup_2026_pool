@@ -62,11 +62,42 @@ def calculate_group_table(predictions: dict, group_name: str) -> list:
 
 
 def get_knockout_teams_from_predictions(predictions: dict) -> list:
+    """Build R32 bracket from a user's group predictions (Option 1)."""
     group_positions = {}
     third_place_teams = []
 
     for group_name in GROUPS:
         table = calculate_group_table(predictions, group_name)
+        group_positions[group_name] = table
+        if len(table) >= 3:
+            third_place_teams.append((group_name, table[2]))
+
+    third_place_teams.sort(key=lambda x: (x[1]["pts"], x[1]["gd"], x[1]["gf"]), reverse=True)
+    best_third = third_place_teams[:8]
+
+    r32_matchups = []
+    for slot_label, source_a, source_b in KNOCKOUT_R32_SLOTS:
+        team_a = _resolve_source(source_a, group_positions, best_third)
+        team_b = _resolve_source(source_b, group_positions, best_third)
+        r32_matchups.append((slot_label, team_a, team_b))
+
+    return r32_matchups
+
+
+def get_knockout_teams_from_official() -> list:
+    """Build R32 bracket from official group results (Option 2 - Knockout Reset)."""
+    sb = get_supabase()
+    resp = sb.table("official_results").select("match_id, home_score, away_score").execute()
+    official_preds = {r["match_id"]: (r["home_score"], r["away_score"]) for r in resp.data}
+
+    if not official_preds:
+        return [(slot, "TBD", "TBD") for slot, _, _ in KNOCKOUT_R32_SLOTS]
+
+    group_positions = {}
+    third_place_teams = []
+
+    for group_name in GROUPS:
+        table = calculate_group_table(official_preds, group_name)
         group_positions[group_name] = table
         if len(table) >= 3:
             third_place_teams.append((group_name, table[2]))
@@ -281,6 +312,30 @@ def is_locked(phase: str = "group") -> bool:
     if resp.data:
         return resp.data[0]["value"] == "1"
     return False
+
+
+def is_knockout_open() -> bool:
+    """For Option 2 (Knockout Reset): knockout predictions open Jun 27 11:30 PM ET."""
+    from datetime import datetime, timezone, timedelta
+    eastern = timezone(timedelta(hours=-4))
+    now = datetime.now(eastern)
+    open_time = datetime(2026, 6, 27, 23, 30, tzinfo=eastern)
+    lock_time = datetime(2026, 6, 28, 14, 58, tzinfo=eastern)
+    return open_time <= now < lock_time
+
+
+def get_knockout_mode() -> str:
+    """Get knockout mode: 'early' (Option 1) or 'reset' (Option 2)."""
+    sb = get_supabase()
+    resp = sb.table("settings").select("value").eq("key", "knockout_mode").execute()
+    if resp.data:
+        return resp.data[0]["value"]
+    return "early"
+
+
+def set_knockout_mode(mode: str):
+    sb = get_supabase()
+    sb.table("settings").upsert({"key": "knockout_mode", "value": mode}).execute()
 
 
 def set_locked(phase: str, locked: bool):

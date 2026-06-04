@@ -9,9 +9,10 @@ from io import BytesIO
 from data import GROUPS, GROUP_MATCHES, KNOCKOUT_R32_SLOTS, KNOCKOUT_ROUNDS
 from logic import (
     init_db, get_supabase, calculate_group_table, get_knockout_teams_from_predictions,
-    save_prediction, get_user_predictions, save_knockout_prediction,
-    get_user_knockout_predictions, calculate_user_total, get_leaderboard,
-    save_official_result, get_official_results, is_locked, set_locked
+    get_knockout_teams_from_official, save_prediction, get_user_predictions,
+    save_knockout_prediction, get_user_knockout_predictions, calculate_user_total,
+    get_leaderboard, save_official_result, get_official_results, is_locked, set_locked,
+    get_knockout_mode, set_knockout_mode, is_knockout_open
 )
 
 st.set_page_config(page_title="World Cup 2026 Predictor", page_icon="⚽", layout="wide")
@@ -193,17 +194,38 @@ def group_predictions_page():
 def knockout_bracket_page():
     st.title("🏆 Knockout Bracket")
 
-    locked = is_locked("knockout")
-    if locked:
-        st.warning("🔒 Knockout predictions are locked.")
-
+    ko_mode = get_knockout_mode()
     username = st.session_state.user["username"]
     user_preds = get_user_predictions(username)
     knockout_preds = get_user_knockout_predictions(username)
 
-    r32_matchups = get_knockout_teams_from_predictions(user_preds)
+    # Determine if knockout is accessible
+    if ko_mode == "reset":
+        # Option 2: Knockout Reset
+        ko_open = is_knockout_open()
+        locked = is_locked("knockout")
 
-    st.caption("Teams are auto-populated from your group predictions. Enter scores for each knockout match (higher score advances; if tied, pick a winner below).")
+        if not ko_open and not locked:
+            st.info("📅 Knockout predictions will open on **June 27 at 11:30 PM ET** after all group matches are complete. The bracket will be built from official results.")
+            st.warning("🔒 Knockout predictions are not yet available.")
+            return
+
+        if locked:
+            st.warning("🔒 Knockout predictions are locked.")
+
+        # Build bracket from official results
+        r32_matchups = get_knockout_teams_from_official()
+        editable = ko_open and not locked
+        st.caption("Bracket is built from official group stage results. Enter your predicted scores for each knockout match.")
+    else:
+        # Option 1: Early Knockout
+        locked = is_locked("knockout")
+        if locked:
+            st.warning("🔒 Knockout predictions are locked.")
+
+        r32_matchups = get_knockout_teams_from_predictions(user_preds)
+        editable = not locked
+        st.caption("Teams are auto-populated from your group predictions. Enter scores for each knockout match (higher score advances; if tied, pick a winner below).")
 
     def render_knockout_round(round_name, matchups):
         st.subheader(round_name)
@@ -222,7 +244,7 @@ def knockout_bracket_page():
                     "H", min_value=0, max_value=20,
                     value=existing_h if existing_h is not None else 0,
                     key=f"ko_h_{match_key}", label_visibility="collapsed",
-                    disabled=locked or "TBD" in [team_a, team_b]
+                    disabled=not editable or "TBD" in [team_a, team_b]
                 )
             with c3:
                 st.write("vs")
@@ -231,7 +253,7 @@ def knockout_bracket_page():
                     "A", min_value=0, max_value=20,
                     value=existing_a if existing_a is not None else 0,
                     key=f"ko_a_{match_key}", label_visibility="collapsed",
-                    disabled=locked or "TBD" in [team_a, team_b]
+                    disabled=not editable or "TBD" in [team_a, team_b]
                 )
             with c5:
                 st.write(f"**{team_b}**")
@@ -245,7 +267,7 @@ def knockout_bracket_page():
                 winner = st.selectbox(
                     "Draw — who advances (ET/Pens)?",
                     options, index=default_idx,
-                    key=f"ko_w_{match_key}", disabled=locked
+                    key=f"ko_w_{match_key}", disabled=not editable
                 )
                 winners.append(winner)
             else:
@@ -274,7 +296,7 @@ def knockout_bracket_page():
         if final_winner and final_winner[0] != "TBD":
             st.markdown(f"### Your predicted champion: **{final_winner[0]}** 🏆")
 
-    if not locked:
+    if editable:
         if st.button("💾 Save Knockout Predictions", type="primary"):
             all_rounds = [
                 ("Round of 32", r32_teams, r32_winners),
@@ -427,6 +449,24 @@ def admin_page():
         else:
             if st.button("🔒 Lock Knockout Stage"):
                 set_locked("knockout", True)
+                st.rerun()
+
+        st.divider()
+
+        st.markdown("**Knockout Mode**")
+        current_mode = get_knockout_mode()
+        st.write(f"Current mode: **{'Option 1 — Early Knockout' if current_mode == 'early' else 'Option 2 — Knockout Reset'}**")
+        st.caption(
+            "**Option 1 (Early):** Users predict the full bracket based on their group predictions before the tournament.\n\n"
+            "**Option 2 (Reset):** Knockout bracket is built from official results. Users predict knockout matches only after group stage ends (Jun 27 11:30 PM – Jun 28 2:58 PM ET)."
+        )
+        if current_mode == "early":
+            if st.button("🔄 Switch to Option 2 (Knockout Reset)"):
+                set_knockout_mode("reset")
+                st.rerun()
+        else:
+            if st.button("🔄 Switch to Option 1 (Early Knockout)"):
+                set_knockout_mode("early")
                 st.rerun()
 
     with tab3:
