@@ -265,6 +265,17 @@ def get_official_results() -> dict:
 
 
 def is_locked(phase: str = "group") -> bool:
+    from datetime import datetime, timezone, timedelta
+    eastern = timezone(timedelta(hours=-4))  # EDT
+    now = datetime.now(eastern)
+    # Auto-lock group stage at Jun 11, 2026 2:58 PM ET
+    if phase == "group":
+        if now >= datetime(2026, 6, 11, 14, 58, tzinfo=eastern):
+            return True
+    # Auto-lock knockout stage at Jun 28, 2026 2:58 PM ET
+    if phase == "knockout":
+        if now >= datetime(2026, 6, 28, 14, 58, tzinfo=eastern):
+            return True
     sb = get_supabase()
     resp = sb.table("settings").select("value").eq("key", f"locked_{phase}").execute()
     if resp.data:
