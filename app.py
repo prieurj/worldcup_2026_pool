@@ -22,16 +22,20 @@ init_db()
 # --- Auth Helpers ---
 
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    return password
 
 
-def check_password(password: str, hashed: str) -> bool:
-    if not password or not hashed:
+def check_password(password: str, stored: str) -> bool:
+    if not password or not stored:
         return False
-    try:
-        return bcrypt.checkpw(password.encode(), hashed.encode())
-    except (ValueError, TypeError):
-        return False
+    # Support legacy bcrypt hashes
+    if stored.startswith("$2b$") or stored.startswith("$2a$"):
+        try:
+            return bcrypt.checkpw(password.encode(), stored.encode())
+        except (ValueError, TypeError):
+            return False
+    # Plain text comparison
+    return password == stored
 
 
 def register_user(username: str, password: str, is_admin: bool = False) -> bool:
