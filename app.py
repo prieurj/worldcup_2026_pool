@@ -18,6 +18,17 @@ from logic import (
 st.set_page_config(page_title="World Cup 2026 Predictor", page_icon="⚽", layout="wide")
 init_db()
 
+# DEBUG: show DB info
+import os
+from logic import DB_PATH
+_conn = get_db()
+_c = _conn.cursor()
+_c.execute("SELECT user_id, username FROM users")
+_users = _c.fetchall()
+_conn.close()
+st.sidebar.caption(f"DB: {DB_PATH}")
+st.sidebar.caption(f"Users: {[r['username'] for r in _users]}")
+
 
 # --- Auth Helpers ---
 
