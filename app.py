@@ -18,17 +18,6 @@ from logic import (
 st.set_page_config(page_title="World Cup 2026 Predictor", page_icon="⚽", layout="wide")
 init_db()
 
-# DEBUG: show DB info
-import os
-from logic import DB_PATH
-_conn = get_db()
-_c = _conn.cursor()
-_c.execute("SELECT user_id, username FROM users")
-_users = _c.fetchall()
-_conn.close()
-st.sidebar.caption(f"DB: {DB_PATH}")
-st.sidebar.caption(f"Users: {[r['username'] for r in _users]}")
-
 
 # --- Auth Helpers ---
 
@@ -342,35 +331,10 @@ def leaderboard_page():
         st.info("No participants yet or no official results entered.")
         return
 
-    is_admin = st.session_state.user["is_admin"]
-
-    if is_admin:
-        # Show leaderboard with paid checkboxes
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("SELECT user_id, username FROM users WHERE is_admin = 0")
-        user_map = {row["username"]: row["user_id"] for row in c.fetchall()}
-        conn.close()
-        payment = get_payment_status()
-
-        st.subheader("Entry Fee Tracker")
-        for entry in board:
-            uname = entry["username"]
-            uid = user_map.get(uname)
-            if uid is None:
-                continue
-            paid = st.checkbox(
-                f"{uname} — {entry['points']} pts",
-                value=payment.get(uid, False),
-                key=f"paid_{uid}"
-            )
-            if paid != payment.get(uid, False):
-                set_payment_status(uid, paid)
-    else:
-        df = pd.DataFrame(board)
-        df.index = range(1, len(df) + 1)
-        df.columns = ["Player", "Total Points", "Exact Scores (3pts)", "Correct Outcomes (1pt)"]
-        st.dataframe(df, use_container_width=True)
+    df = pd.DataFrame(board)
+    df.index = range(1, len(df) + 1)
+    df.columns = ["Player", "Total Points", "Exact Scores (3pts)", "Correct Outcomes (1pt)"]
+    st.dataframe(df, use_container_width=True)
 
     # Show current user's breakdown
     if not st.session_state.user["is_admin"]:
@@ -456,13 +420,13 @@ def admin_page():
         c = conn.cursor()
         c.execute("SELECT user_id, username, is_admin FROM users")
         users = c.fetchall()
-        # Count group predictions per user
         c.execute("SELECT user_id, COUNT(*) as cnt FROM predictions GROUP BY user_id")
         p1_counts = {row["user_id"]: row["cnt"] for row in c.fetchall()}
-        # Count knockout predictions per user (only 'winner' fields = 1 per match)
         c.execute("SELECT user_id, COUNT(*) as cnt FROM knockout_predictions WHERE field = 'winner' GROUP BY user_id")
         p2_counts = {row["user_id"]: row["cnt"] for row in c.fetchall()}
         conn.close()
+        payment = get_payment_status()
+
         user_df = pd.DataFrame([{
             "Username": r["username"],
             "Admin": "Yes" if r["is_admin"] else "No",
@@ -470,6 +434,37 @@ def admin_page():
             "P2P (Knockout)": p2_counts.get(r["user_id"], 0),
         } for r in users])
         st.dataframe(user_df, use_container_width=True, hide_index=True)
+
+        # Entry fee tracker
+        st.subheader("Entry Fee Tracker")
+        non_admin_users = [r for r in users if not r["is_admin"]]
+        for r in non_admin_users:
+            uid = r["user_id"]
+            paid = st.checkbox(
+                f"{r['username']}",
+                value=payment.get(uid, False),
+                key=f"paid_{uid}"
+            )
+            if paid != payment.get(uid, False):
+                set_payment_status(uid, paid)
+
+        # Reset password
+        st.subheader("Reset User Password")
+        user_names = [r["username"] for r in users]
+        reset_user = st.selectbox("Select User", user_names, key="reset_user_select")
+        new_pw = st.text_input("New Password", type="password", key="reset_pw")
+        if st.button("🔑 Reset Password", type="primary"):
+            if not new_pw:
+                st.error("Password cannot be empty.")
+            else:
+                conn = get_db()
+                conn.execute(
+                    "UPDATE users SET password_hash = ? WHERE username = ?",
+                    (hash_password(new_pw), reset_user)
+                )
+                conn.commit()
+                conn.close()
+                st.success(f"Password reset for {reset_user}.")
 
 
     with tab4:
