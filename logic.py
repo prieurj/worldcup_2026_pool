@@ -6,7 +6,7 @@ import json
 import os
 from data import GROUPS, GROUP_MATCHES, KNOCKOUT_R32_SLOTS
 
-DB_PATH = "worldcup2026.db"
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "worldcup2026.db")
 
 
 def get_db():
