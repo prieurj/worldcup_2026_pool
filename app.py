@@ -470,6 +470,23 @@ def admin_page():
                 conn.close()
                 st.success(f"Password reset for {reset_user}.")
 
+        # Delete user
+        st.subheader("🗑️ Delete User")
+        non_admin_names = [r["username"] for r in non_admin_users]
+        if non_admin_names:
+            delete_user = st.selectbox("Select User to Delete", non_admin_names, key="delete_user_select")
+            if st.button("❌ Delete User", type="primary"):
+                conn = get_db()
+                uid = conn.execute("SELECT user_id FROM users WHERE username = ?", (delete_user,)).fetchone()["user_id"]
+                conn.execute("DELETE FROM predictions WHERE user_id = ?", (uid,))
+                conn.execute("DELETE FROM knockout_predictions WHERE user_id = ?", (uid,))
+                conn.execute("DELETE FROM payment_status WHERE user_id = ?", (uid,))
+                conn.execute("DELETE FROM users WHERE user_id = ?", (uid,))
+                conn.commit()
+                conn.close()
+                st.success(f"Deleted {delete_user} and all their predictions.")
+                st.rerun()
+
 
     with tab4:
         st.subheader("Download User Predictions")
