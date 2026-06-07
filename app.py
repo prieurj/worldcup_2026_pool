@@ -472,9 +472,9 @@ def admin_page():
 
         # Delete user
         st.subheader("🗑️ Delete User")
-        non_admin_names = [r["username"] for r in non_admin_users]
-        if non_admin_names:
-            delete_user = st.selectbox("Select User to Delete", non_admin_names, key="delete_user_select")
+        all_user_names = [r["username"] for r in users if r["username"] != st.session_state.user["username"]]
+        if all_user_names:
+            delete_user = st.selectbox("Select User to Delete", all_user_names, key="delete_user_select")
             if st.button("❌ Delete User", type="primary"):
                 conn = get_db()
                 uid = conn.execute("SELECT user_id FROM users WHERE username = ?", (delete_user,)).fetchone()["user_id"]
