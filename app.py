@@ -26,7 +26,12 @@ def hash_password(password: str) -> str:
 
 
 def check_password(password: str, hashed: str) -> bool:
-    return bcrypt.checkpw(password.encode(), hashed.encode())
+    if not password or not hashed:
+        return False
+    try:
+        return bcrypt.checkpw(password.encode(), hashed.encode())
+    except (ValueError, TypeError):
+        return False
 
 
 def register_user(username: str, password: str, is_admin: bool = False) -> bool:
