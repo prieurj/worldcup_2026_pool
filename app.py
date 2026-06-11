@@ -480,11 +480,10 @@ def admin_page():
         ko_counts = {}
         for r in resp.data:
             uname = r["username"]
-            if not r["is_admin"]:
-                u_preds = sb.table("predictions").select("match_id", count="exact").eq("username", uname).execute()
-                group_counts[uname] = u_preds.count if u_preds.count else 0
-                u_ko = sb.table("knockout_predictions").select("field", count="exact").eq("username", uname).eq("field", "winner").execute()
-                ko_counts[uname] = u_ko.count if u_ko.count else 0
+            u_preds = sb.table("predictions").select("match_id", count="exact").eq("username", uname).execute()
+            group_counts[uname] = u_preds.count if u_preds.count else 0
+            u_ko = sb.table("knockout_predictions").select("field", count="exact").eq("username", uname).eq("field", "winner").execute()
+            ko_counts[uname] = u_ko.count if u_ko.count else 0
 
         user_df = pd.DataFrame([{
             "Username": r["username"],
