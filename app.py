@@ -397,9 +397,12 @@ def admin_page():
             mid = match["match_id"]
             existing_h = official.get(mid, (None, None))[0]
             existing_a = official.get(mid, (None, None))[1]
+            is_played = mid in official
 
             st.caption(f"📅 {match['date']} · ⏰ {match['time']} · 🏟️ {match['venue']}")
-            c1, c2, c3, c4, c5 = st.columns([3, 1, 1, 1, 3])
+            c0, c1, c2, c3, c4, c5 = st.columns([0.5, 3, 1, 1, 1, 3])
+            with c0:
+                st.checkbox("✓", value=is_played, key=f"played_{mid}", label_visibility="collapsed")
             with c1:
                 st.write(f"**{match['home']}**")
             with c2:
@@ -420,11 +423,17 @@ def admin_page():
                 st.write(f"**{match['away']}**")
 
         if st.button(f"💾 Save Official Results for Group {selected_group}", type="primary"):
+            sb = get_supabase()
             for match in group_matches:
                 mid = match["match_id"]
-                h = st.session_state[f"off_h_{mid}"]
-                a = st.session_state[f"off_a_{mid}"]
-                save_official_result(mid, h, a)
+                played = st.session_state.get(f"played_{mid}", False)
+                if played:
+                    h = st.session_state[f"off_h_{mid}"]
+                    a = st.session_state[f"off_a_{mid}"]
+                    save_official_result(mid, h, a)
+                else:
+                    # Remove result if unchecked
+                    sb.table("official_results").delete().eq("match_id", mid).execute()
             st.success(f"Official results for Group {selected_group} saved!")
 
     with tab2:
