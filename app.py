@@ -475,17 +475,16 @@ def admin_page():
         sb = get_supabase()
         resp = sb.table("users").select("username, is_admin, pending_admin").execute()
 
-        # Get prediction counts
-        preds_resp = sb.table("predictions").select("username").limit(5000).execute()
-        ko_resp = sb.table("knockout_predictions").select("username, field").eq("field", "winner").limit(5000).execute()
-
-        # Count per user
+        # Get prediction counts per user
         group_counts = {}
-        for r in preds_resp.data:
-            group_counts[r["username"]] = group_counts.get(r["username"], 0) + 1
         ko_counts = {}
-        for r in ko_resp.data:
-            ko_counts[r["username"]] = ko_counts.get(r["username"], 0) + 1
+        for r in resp.data:
+            uname = r["username"]
+            if not r["is_admin"]:
+                u_preds = sb.table("predictions").select("match_id", count="exact").eq("username", uname).execute()
+                group_counts[uname] = u_preds.count if u_preds.count else 0
+                u_ko = sb.table("knockout_predictions").select("field", count="exact").eq("username", uname).eq("field", "winner").execute()
+                ko_counts[uname] = u_ko.count if u_ko.count else 0
 
         user_df = pd.DataFrame([{
             "Username": r["username"],
