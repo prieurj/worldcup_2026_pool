@@ -476,8 +476,8 @@ def admin_page():
         resp = sb.table("users").select("username, is_admin, pending_admin").execute()
 
         # Get prediction counts
-        preds_resp = sb.table("predictions").select("username").execute()
-        ko_resp = sb.table("knockout_predictions").select("username, field").eq("field", "winner").execute()
+        preds_resp = sb.table("predictions").select("username").limit(5000).execute()
+        ko_resp = sb.table("knockout_predictions").select("username, field").eq("field", "winner").limit(5000).execute()
 
         # Count per user
         group_counts = {}
