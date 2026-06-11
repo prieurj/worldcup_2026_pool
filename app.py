@@ -424,9 +424,9 @@ def admin_page():
         c = conn.cursor()
         c.execute("SELECT user_id, username, is_admin FROM users")
         users = c.fetchall()
-        c.execute("SELECT p.user_id, COUNT(*) as cnt FROM predictions p INNER JOIN users u ON p.user_id = u.user_id GROUP BY p.user_id")
+        c.execute("SELECT user_id, COUNT(*) as cnt FROM predictions GROUP BY user_id")
         p1_counts = {row["user_id"]: row["cnt"] for row in c.fetchall()}
-        c.execute("SELECT k.user_id, COUNT(*) as cnt FROM knockout_predictions k INNER JOIN users u ON k.user_id = u.user_id WHERE k.field = 'winner' GROUP BY k.user_id")
+        c.execute("SELECT user_id, COUNT(*) as cnt FROM knockout_predictions WHERE field = 'winner' GROUP BY user_id")
         p2_counts = {row["user_id"]: row["cnt"] for row in c.fetchall()}
         conn.close()
         payment = get_payment_status()
