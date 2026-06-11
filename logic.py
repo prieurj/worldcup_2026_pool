@@ -217,7 +217,7 @@ def calculate_user_total(username: str) -> dict:
 def get_leaderboard() -> list:
     """Get leaderboard split by group and knockout stages."""
     sb = get_supabase()
-    users_resp = sb.table("users").select("username").eq("is_admin", False).execute()
+    users_resp = sb.table("users").select("username").execute()
     users = [r["username"] for r in users_resp.data]
 
     board = []
