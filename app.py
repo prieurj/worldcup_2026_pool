@@ -206,122 +206,8 @@ def group_predictions_page():
 # --- Knockout Bracket Page ---
 
 def knockout_bracket_page():
-    st.title("🏆 Knockout Bracket")
-
-    ko_mode = get_knockout_mode()
-    username = st.session_state.user["username"]
-    user_preds = get_user_predictions(username)
-    knockout_preds = get_user_knockout_predictions(username)
-
-    if ko_mode == "reset":
-        ko_open = is_knockout_open()
-        locked = is_locked("knockout")
-        if not ko_open and not locked:
-            st.info("📅 Knockout predictions will open on **June 27 at 11:30 PM ET** after all group matches are complete.")
-            st.warning("🔒 Knockout predictions are not yet available.")
-            return
-        if locked:
-            st.warning("🔒 Knockout predictions are locked.")
-        r32_matchups = get_knockout_teams_from_official()
-        editable = ko_open and not locked
-        st.caption("Bracket is built from official group stage results. Enter your predicted scores for each knockout match.")
-    else:
-        locked = is_locked("knockout")
-        if locked:
-            st.warning("🔒 Knockout predictions are locked.")
-        r32_matchups = get_knockout_teams_from_predictions(user_preds)
-        editable = not locked
-        st.caption("Teams are auto-populated from your group predictions. Enter scores for each knockout match (higher score advances; if tied, pick a winner below).")
-
-    def render_knockout_round(round_name, matchups):
-        st.subheader(round_name)
-        winners = []
-        for i, (team_a, team_b) in enumerate(matchups):
-            match_key = f"{round_name}_{i}"
-            existing_h = knockout_preds.get((round_name, i, "home"), None)
-            existing_a = knockout_preds.get((round_name, i, "away"), None)
-
-            st.markdown(f"**{team_a}** vs **{team_b}**")
-            c1, c2, c3, c4, c5 = st.columns([3, 1, 1, 1, 3])
-            with c1:
-                st.write(f"**{team_a}**")
-            with c2:
-                h_score = st.number_input(
-                    "H", min_value=0, max_value=20,
-                    value=existing_h if existing_h is not None else 0,
-                    key=f"ko_h_{match_key}", label_visibility="collapsed",
-                    disabled=not editable or "TBD" in [team_a, team_b]
-                )
-            with c3:
-                st.write("vs")
-            with c4:
-                a_score = st.number_input(
-                    "A", min_value=0, max_value=20,
-                    value=existing_a if existing_a is not None else 0,
-                    key=f"ko_a_{match_key}", label_visibility="collapsed",
-                    disabled=not editable or "TBD" in [team_a, team_b]
-                )
-            with c5:
-                st.write(f"**{team_b}**")
-
-            if "TBD" in [team_a, team_b]:
-                winners.append("TBD")
-            elif h_score == a_score:
-                existing_winner = knockout_preds.get((round_name, i, "winner"), None)
-                options = [team_a, team_b]
-                default_idx = options.index(existing_winner) if existing_winner in options else 0
-                winner = st.selectbox(
-                    "Draw — who advances (ET/Pens)?",
-                    options, index=default_idx,
-                    key=f"ko_w_{match_key}", disabled=not editable
-                )
-                winners.append(winner)
-            else:
-                winner = team_a if h_score > a_score else team_b
-                st.caption(f"✅ {winner} advances")
-                winners.append(winner)
-
-            st.divider()
-        return winners
-
-    r32_teams = [(team_a, team_b) for (_, team_a, team_b) in r32_matchups]
-    r32_winners = render_knockout_round("Round of 32", r32_teams)
-
-    r16_teams = [(r32_winners[i], r32_winners[i+1]) for i in range(0, len(r32_winners), 2)]
-    r16_winners = render_knockout_round("Round of 16", r16_teams)
-
-    qf_teams = [(r16_winners[i], r16_winners[i+1]) for i in range(0, len(r16_winners), 2)]
-    qf_winners = render_knockout_round("Quarter-Finals", qf_teams)
-
-    sf_teams = [(qf_winners[i], qf_winners[i+1]) for i in range(0, len(qf_winners), 2)]
-    sf_winners = render_knockout_round("Semi-Finals", sf_teams)
-
-    if len(sf_winners) >= 2:
-        final_teams = [(sf_winners[0], sf_winners[1])]
-        final_winner = render_knockout_round("🏆 Final", final_teams)
-        if final_winner and final_winner[0] != "TBD":
-            st.markdown(f"### Your predicted champion: **{final_winner[0]}** 🏆")
-
-    if editable:
-        if st.button("💾 Save Knockout Predictions", type="primary"):
-            all_rounds = [
-                ("Round of 32", r32_teams, r32_winners),
-                ("Round of 16", r16_teams, r16_winners),
-                ("Quarter-Finals", qf_teams, qf_winners),
-                ("Semi-Finals", sf_teams, sf_winners),
-            ]
-            if len(sf_winners) >= 2:
-                all_rounds.append(("🏆 Final", final_teams, final_winner))
-
-            for round_name, teams, winners in all_rounds:
-                for i, (team_a, team_b) in enumerate(teams):
-                    match_key = f"{round_name}_{i}"
-                    h = st.session_state.get(f"ko_h_{match_key}", 0)
-                    a = st.session_state.get(f"ko_a_{match_key}", 0)
-                    save_knockout_prediction(username, round_name, i, "home", h)
-                    save_knockout_prediction(username, round_name, i, "away", a)
-                    save_knockout_prediction(username, round_name, i, "winner", winners[i])
-            st.success("Knockout predictions saved!")
+    from knockout_bracket import knockout_bracket_page as _kbp
+    _kbp()
 
 
 # --- Leaderboard Page ---
@@ -383,7 +269,7 @@ def leaderboard_page():
 def admin_page():
     st.title("⚙️ Admin Panel")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["Enter Results", "Lock/Unlock", "Manage Users", "Download Predictions"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Enter GP Results", "Enter KO Results", "Lock/Unlock", "Manage Users", "Download Predictions"])
 
     with tab1:
         st.subheader("Enter Official Match Results")
@@ -437,6 +323,104 @@ def admin_page():
             st.success(f"Official results for Group {selected_group} saved!")
 
     with tab2:
+        st.subheader("Enter Knockout Results")
+        from knockout_bracket import KNOCKOUT_SCHEDULE, ROUND_ORDER, get_active_round, get_round_matchups
+
+        sb_ko = get_supabase()
+        r32_matchups = get_knockout_teams_from_official()
+
+        try:
+            ko_resp = sb_ko.table("official_knockout_results").select("round, match_index, home_score, away_score, winner").execute()
+            ko_official = {}
+            for r in ko_resp.data:
+                ko_official[(r["round"], r["match_index"])] = (r["home_score"], r["away_score"], r["winner"])
+        except Exception:
+            ko_resp = sb_ko.table("official_knockout_results").select("round, match_index, home_score, away_score").execute()
+            ko_official = {}
+            for r in ko_resp.data:
+                ko_official[(r["round"], r["match_index"])] = (r["home_score"], r["away_score"], None)
+
+        selected_ko_round = st.selectbox("Select Round", ROUND_ORDER, key="admin_ko_round")
+        matchups = get_round_matchups(selected_ko_round, r32_matchups, ko_official)
+        schedule = KNOCKOUT_SCHEDULE[selected_ko_round]
+        st.caption(f"📅 {schedule['first']} → {schedule['last']}")
+
+        has_tbd = any("TBD" in [ta, tb] for ta, tb in matchups)
+        if has_tbd:
+            st.warning("⏳ Previous round results not complete — some matchups are TBD.")
+
+        for i, (team_a, team_b) in enumerate(matchups):
+            existing = ko_official.get((selected_ko_round, i))
+            existing_h = existing[0] if existing else None
+            existing_a = existing[1] if existing else None
+            existing_w = existing[2] if existing else None
+            is_played = existing is not None
+
+            c0, c1, c2, c3, c4, c5 = st.columns([0.5, 3, 1, 1, 1, 3])
+            with c0:
+                st.checkbox("✓", value=is_played, key=f"ko_played_{selected_ko_round}_{i}", label_visibility="collapsed",
+                            disabled="TBD" in [team_a, team_b])
+            with c1:
+                st.write(f"**{team_a}**")
+            with c2:
+                st.number_input(
+                    "H", min_value=0, max_value=20,
+                    value=existing_h if existing_h is not None else 0,
+                    key=f"ko_off_h_{selected_ko_round}_{i}", label_visibility="collapsed",
+                    disabled="TBD" in [team_a, team_b]
+                )
+            with c3:
+                st.write("vs")
+            with c4:
+                st.number_input(
+                    "A", min_value=0, max_value=20,
+                    value=existing_a if existing_a is not None else 0,
+                    key=f"ko_off_a_{selected_ko_round}_{i}", label_visibility="collapsed",
+                    disabled="TBD" in [team_a, team_b]
+                )
+            with c5:
+                st.write(f"**{team_b}**")
+
+            if "TBD" not in [team_a, team_b]:
+                h_val = st.session_state.get(f"ko_off_h_{selected_ko_round}_{i}", 0)
+                a_val = st.session_state.get(f"ko_off_a_{selected_ko_round}_{i}", 0)
+                if h_val == a_val:
+                    options = [team_a, team_b]
+                    default_idx = options.index(existing_w) if existing_w in options else 0
+                    st.selectbox(
+                        "Who advanced (ET/Pens)?",
+                        options, index=default_idx,
+                        key=f"ko_off_w_{selected_ko_round}_{i}"
+                    )
+
+            st.divider()
+
+        if st.button(f"💾 Save {selected_ko_round} Results", type="primary", key="save_ko_results"):
+            saved = 0
+            for i, (team_a, team_b) in enumerate(matchups):
+                played = st.session_state.get(f"ko_played_{selected_ko_round}_{i}", False)
+                if played and "TBD" not in [team_a, team_b]:
+                    h = st.session_state[f"ko_off_h_{selected_ko_round}_{i}"]
+                    a = st.session_state[f"ko_off_a_{selected_ko_round}_{i}"]
+                    if h == a:
+                        winner = st.session_state.get(f"ko_off_w_{selected_ko_round}_{i}", team_a)
+                    elif h > a:
+                        winner = team_a
+                    else:
+                        winner = team_b
+                    sb_ko.table("official_knockout_results").upsert({
+                        "round": selected_ko_round,
+                        "match_index": i,
+                        "home_score": h,
+                        "away_score": a,
+                        "winner": winner
+                    }).execute()
+                    saved += 1
+                elif not played:
+                    sb_ko.table("official_knockout_results").delete().eq("round", selected_ko_round).eq("match_index", i).execute()
+            st.success(f"Saved {saved} results for {selected_ko_round}!")
+
+    with tab3:
         st.subheader("Prediction Locks")
 
         st.markdown("**Group Stage**")
@@ -479,7 +463,7 @@ def admin_page():
                 set_knockout_mode("early")
                 st.rerun()
 
-    with tab3:
+    with tab4:
         st.subheader("Registered Users")
         sb = get_supabase()
         resp = sb.table("users").select("username, is_admin, pending_admin").execute()
@@ -561,7 +545,7 @@ def admin_page():
                 st.success(f"Deleted {delete_user} and all their predictions.")
                 st.rerun()
 
-    with tab4:
+    with tab5:
         st.subheader("Download User Predictions")
         sb = get_supabase()
         resp = sb.table("users").select("username").eq("is_admin", False).execute()
