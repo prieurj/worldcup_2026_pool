@@ -142,4 +142,16 @@ KNOCKOUT_R32_SLOTS = [
     ("R32_88", "2D", "2G"),
 ]
 
+# Manual overrides for confirmed R32 matchups (team_a, team_b).
+# These take precedence over the calculated group positions above.
+# Key = slot label, Value = (team_a, team_b)
+R32_OVERRIDES = {
+    "R32_74": ("Germany", "Paraguay"),
+    "R32_77": ("France", "Sweden"),
+    "R32_78": ("Ivory Coast", "Norway"),
+    "R32_81": ("United States", "Bosnia and Herzegovina"),
+    "R32_86": ("Argentina", "Cape Verde"),
+    "R32_88": ("Australia", "Egypt"),
+}
+
 KNOCKOUT_ROUNDS = ["Round of 32", "Round of 16", "Quarter-Finals", "Semi-Finals", "Final"]

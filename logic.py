@@ -4,7 +4,7 @@ Uses Supabase (PostgreSQL) for persistent cloud storage.
 """
 import streamlit as st
 from supabase import create_client, Client
-from data import GROUPS, GROUP_MATCHES, KNOCKOUT_R32_SLOTS
+from data import GROUPS, GROUP_MATCHES, KNOCKOUT_R32_SLOTS, R32_OVERRIDES
 
 
 def get_supabase() -> Client:
@@ -107,8 +107,11 @@ def get_knockout_teams_from_official() -> list:
 
     r32_matchups = []
     for slot_label, source_a, source_b in KNOCKOUT_R32_SLOTS:
-        team_a = _resolve_source(source_a, group_positions, best_third)
-        team_b = _resolve_source(source_b, group_positions, best_third)
+        if slot_label in R32_OVERRIDES:
+            team_a, team_b = R32_OVERRIDES[slot_label]
+        else:
+            team_a = _resolve_source(source_a, group_positions, best_third)
+            team_b = _resolve_source(source_b, group_positions, best_third)
         r32_matchups.append((slot_label, team_a, team_b))
 
     return r32_matchups
