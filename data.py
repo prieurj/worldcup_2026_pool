@@ -149,6 +149,7 @@ R32_OVERRIDES = {
     "R32_73": ("South Africa", "Canada"),
     "R32_74": ("Germany", "Paraguay"),
     "R32_75": ("Netherlands", "Morocco"),
+    "R32_76": ("Brazil", "Japan"),
     "R32_77": ("France", "Sweden"),
     "R32_78": ("Ivory Coast", "Norway"),
     "R32_79": ("Mexico", "Ecuador"),
