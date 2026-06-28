@@ -157,6 +157,8 @@ R32_OVERRIDES = {
     "R32_81": ("United States", "Bosnia and Herzegovina"),
     "R32_82": ("Belgium", "Senegal"),
     "R32_83": ("Portugal", "Croatia"),
+    "R32_84": ("Spain", "Austria"),
+    "R32_85": ("Switzerland", "Algeria"),
     "R32_86": ("Argentina", "Cape Verde"),
     "R32_87": ("Colombia", "Ghana"),
     "R32_88": ("Australia", "Egypt"),
