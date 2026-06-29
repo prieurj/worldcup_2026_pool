@@ -43,10 +43,33 @@ def build_match_id(group, home, away):
     return f"{group}_{home}_vs_{away}"
 
 
+ROUND_ORDER = ["Round of 32", "Round of 16", "Quarter-Finals", "Semi-Finals", "Final"]
+
+
+def get_round_matchups_standalone(round_name, r32_matchups, ko_official):
+    """Build matchups for a given round (no streamlit dependency)."""
+    if round_name == "Round of 32":
+        return [(ta, tb) for (_, ta, tb) in r32_matchups]
+
+    prev_round_idx = ROUND_ORDER.index(round_name) - 1
+    prev_round = ROUND_ORDER[prev_round_idx]
+    prev_matchups = get_round_matchups_standalone(prev_round, r32_matchups, ko_official)
+
+    winners = []
+    for i, (ta, tb) in enumerate(prev_matchups):
+        result = ko_official.get((prev_round, i))
+        if result:
+            _, _, winner = result
+            winners.append(winner)
+        else:
+            winners.append("TBD")
+
+    return [(winners[i], winners[i + 1]) for i in range(0, len(winners), 2)]
+
+
 def find_knockout_match_index(round_name, home_team, away_team, r32_matchups, ko_official):
     """Find the match_index for a knockout game based on team names."""
-    from knockout_bracket import get_round_matchups
-    matchups = get_round_matchups(round_name, r32_matchups, ko_official)
+    matchups = get_round_matchups_standalone(round_name, r32_matchups, ko_official)
     for i, (ta, tb) in enumerate(matchups):
         if (ta == home_team and tb == away_team) or (ta == away_team and tb == home_team):
             return i, ta, tb
