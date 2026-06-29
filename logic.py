@@ -162,13 +162,13 @@ def calculate_user_total(username: str) -> dict:
     ko_resp = sb.table("knockout_predictions").select("round, match_index, field, value").eq("username", username).execute()
     ko_preds = {}
     for r in ko_resp.data:
-        ko_preds[(r["round"], r["match_index"], r["field"])] = r["value"]
+        ko_preds[(r["round"], int(r["match_index"]), r["field"])] = r["value"]
 
     official_resp = sb.table("official_results").select("match_id, home_score, away_score").execute()
     official = {r["match_id"]: (r["home_score"], r["away_score"]) for r in official_resp.data}
 
     ko_official_resp = sb.table("official_knockout_results").select("round, match_index, home_score, away_score").execute()
-    ko_official = {(r["round"], r["match_index"]): (r["home_score"], r["away_score"]) for r in ko_official_resp.data}
+    ko_official = {(r["round"], int(r["match_index"])): (r["home_score"], r["away_score"]) for r in ko_official_resp.data}
 
     group_total = group_exact = group_correct = group_wrong = 0
     group_details = []
