@@ -185,28 +185,45 @@ def main():
 
         home_team = get_team_name(match["homeTeam"]["name"])
         away_team = get_team_name(match["awayTeam"]["name"])
-        home_score = match["score"]["fullTime"]["home"]
-        away_score = match["score"]["fullTime"]["away"]
+
+        # Build score after 120 min (regularTime + extraTime), excluding penalties
+        reg = match["score"].get("regularTime", {})
+        et = match["score"].get("extraTime", {})
+        reg_home = reg.get("home")
+        reg_away = reg.get("away")
+        et_home = et.get("home", 0) or 0
+        et_away = et.get("away", 0) or 0
+
+        if reg_home is not None and reg_away is not None:
+            # Regular time + extra time = score after 120 min
+            home_score = reg_home + et_home
+            away_score = reg_away + et_away
+        else:
+            # Fallback: if no regularTime breakdown, use fullTime minus penalties
+            home_score = match["score"]["fullTime"]["home"]
+            away_score = match["score"]["fullTime"]["away"]
+            # If penalties exist, fullTime might include them — subtract
+            pen = match["score"].get("penalties", {})
+            if pen.get("home") is not None:
+                # fullTime includes pens on this API, fall back to regulation + ET
+                home_score = None
+                away_score = None
 
         if home_score is None or away_score is None:
             continue
 
-        # Determine winner (penalties/extra time)
+        # Determine winner (who actually advanced)
         if home_score != away_score:
             winner = home_team if home_score > away_score else away_team
         else:
-            # Check penalties
+            # Score tied after 120 min — decided by penalties
             pen = match["score"].get("penalties", {})
             pen_home = pen.get("home")
             pen_away = pen.get("away")
             if pen_home is not None and pen_away is not None:
                 winner = home_team if pen_home > pen_away else away_team
             else:
-                # Fallback: check regularTime or extraTime for actual winner
-                et = match["score"].get("extraTime", {})
-                et_home = et.get("home", 0) or 0
-                et_away = et.get("away", 0) or 0
-                winner = home_team if et_home > et_away else away_team
+                winner = home_team  # Shouldn't happen, fallback
 
         # Find match index
         match_index, bracket_a, bracket_b = find_knockout_match_index(
