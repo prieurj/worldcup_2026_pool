@@ -6,7 +6,7 @@ import os
 import sys
 import requests
 from supabase import create_client
-from data import R32_OVERRIDES, R16_OVERRIDES
+from data import R32_OVERRIDES, R16_OVERRIDES, R16_PAIRINGS
 
 FOOTBALL_DATA_URL = "https://api.football-data.org/v4/competitions/WC/matches"
 API_TOKEN = os.environ.get("FOOTBALL_DATA_KEY")
@@ -64,7 +64,13 @@ def get_round_matchups_standalone(round_name, r32_matchups, ko_official):
         else:
             winners.append("TBD")
 
-    matchups = [(winners[i], winners[i + 1]) for i in range(0, len(winners), 2)]
+    if round_name == "Round of 16":
+        matchups = []
+        for idx in range(len(winners) // 2):
+            a_idx, b_idx = R16_PAIRINGS.get(idx, (idx * 2, idx * 2 + 1))
+            matchups.append((winners[a_idx], winners[b_idx]))
+    else:
+        matchups = [(winners[i], winners[i + 1]) for i in range(0, len(winners), 2)]
 
     if round_name == "Round of 16":
         for idx, (team_a, team_b) in R16_OVERRIDES.items():

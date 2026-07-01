@@ -173,4 +173,18 @@ R16_OVERRIDES = {
     3: ("Mexico", "TBD"),
 }
 
+# Custom R16 pairing: maps R16 match index to the pair of R32 match indices whose winners meet.
+# Default would be (0,1), (2,3), (4,5), (6,7), (8,9), (10,11), (12,13), (14,15)
+# But the actual FIFA bracket for the bottom half is different:
+R16_PAIRINGS = {
+    0: (0, 1),    # Match 89: winner R32_73 vs winner R32_74
+    1: (2, 3),    # Match 90: winner R32_75 vs winner R32_76
+    2: (4, 5),    # Match 91: winner R32_77 vs winner R32_78
+    3: (6, 7),    # Match 92: winner R32_79 vs winner R32_80
+    4: (8, 9),    # Match 94: winner R32_81 vs winner R32_82
+    5: (10, 11),  # Match 93: winner R32_83 vs winner R32_84
+    6: (13, 15),  # Match 95: winner R32_86 vs winner R32_88
+    7: (12, 14),  # Match 96: winner R32_85 vs winner R32_87
+}
+
 KNOCKOUT_ROUNDS = ["Round of 32", "Round of 16", "Quarter-Finals", "Semi-Finals", "Final"]
