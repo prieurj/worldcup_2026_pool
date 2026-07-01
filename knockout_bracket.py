@@ -7,6 +7,7 @@ Bracket-style knockout page with auto-advancing rounds.
 """
 import streamlit as st
 import pandas as pd
+from data import R16_OVERRIDES
 
 # Knockout round schedule (first and last game times)
 KNOCKOUT_SCHEDULE = {
@@ -50,7 +51,15 @@ def get_round_matchups(round_name, r32_matchups, ko_official_results):
             winners.append("TBD")
 
     # Pair winners for next round
-    return [(winners[i], winners[i + 1]) for i in range(0, len(winners), 2)]
+    matchups = [(winners[i], winners[i + 1]) for i in range(0, len(winners), 2)]
+
+    # Apply R16 overrides if applicable
+    if round_name == "Round of 16":
+        for idx, (team_a, team_b) in R16_OVERRIDES.items():
+            if idx < len(matchups):
+                matchups[idx] = (team_a, team_b)
+
+    return matchups
 
 
 def knockout_bracket_page():

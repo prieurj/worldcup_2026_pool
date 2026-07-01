@@ -4,7 +4,7 @@ Uses Supabase (PostgreSQL) for persistent cloud storage.
 """
 import streamlit as st
 from supabase import create_client, Client
-from data import GROUPS, GROUP_MATCHES, KNOCKOUT_R32_SLOTS, R32_OVERRIDES
+from data import GROUPS, GROUP_MATCHES, KNOCKOUT_R32_SLOTS, R32_OVERRIDES, R16_OVERRIDES
 
 
 def get_supabase() -> Client:

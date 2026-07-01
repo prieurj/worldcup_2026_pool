@@ -164,4 +164,13 @@ R32_OVERRIDES = {
     "R32_88": ("Australia", "Egypt"),
 }
 
+# Manual overrides for confirmed R16 matchups.
+# Key = match index (0-7), Value = (team_a, team_b)
+R16_OVERRIDES = {
+    0: ("Paraguay", "France"),
+    1: ("Canada", "Morocco"),
+    2: ("Brazil", "Norway"),
+    3: ("Mexico", "TBD"),
+}
+
 KNOCKOUT_ROUNDS = ["Round of 32", "Round of 16", "Quarter-Finals", "Semi-Finals", "Final"]
