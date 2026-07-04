@@ -7,15 +7,6 @@ Bracket-style knockout page with auto-advancing rounds.
 """
 import streamlit as st
 import pandas as pd
-from data import R16_OVERRIDES, R16_PAIRINGS
-
-# Quarter-final pairings: maps QF match index to pair of R16 match indices whose winners meet.
-QF_PAIRINGS = {
-    0: (0, 1),  # Game 97: winner G89 vs winner G90
-    1: (4, 5),  # Game 98: winner G93 vs winner G94
-    2: (2, 3),  # Game 99: winner G91 vs winner G92
-    3: (6, 7),  # Game 100: winner G95 vs winner G96
-}
 
 # Knockout round schedule (first and last game times)
 KNOCKOUT_SCHEDULE = {
@@ -54,38 +45,12 @@ def get_round_matchups(round_name, r32_matchups, ko_official_results):
         result = ko_official_results.get((prev_round, i))
         if result:
             h_score, a_score, winner = result
-            if winner:
-                winners.append(winner)
-            elif h_score > a_score:
-                winners.append(ta)
-            elif a_score > h_score:
-                winners.append(tb)
-            else:
-                winners.append(ta)  # default home team for draws without winner
+            winners.append(winner)
         else:
             winners.append("TBD")
 
-    # Use custom pairings for R16 and QF, default adjacent pairing for other rounds
-    if round_name == "Round of 16":
-        matchups = []
-        for idx in range(len(winners) // 2):
-            a_idx, b_idx = R16_PAIRINGS.get(idx, (idx * 2, idx * 2 + 1))
-            matchups.append((winners[a_idx], winners[b_idx]))
-    elif round_name == "Quarter-Finals":
-        matchups = []
-        for idx in range(len(winners) // 2):
-            a_idx, b_idx = QF_PAIRINGS.get(idx, (idx * 2, idx * 2 + 1))
-            matchups.append((winners[a_idx], winners[b_idx]))
-    else:
-        matchups = [(winners[i], winners[i + 1]) for i in range(0, len(winners), 2)]
-
-    # Apply R16 overrides if applicable
-    if round_name == "Round of 16":
-        for idx, (team_a, team_b) in R16_OVERRIDES.items():
-            if idx < len(matchups):
-                matchups[idx] = (team_a, team_b)
-
-    return matchups
+    # Pair winners for next round
+    return [(winners[i], winners[i + 1]) for i in range(0, len(winners), 2)]
 
 
 def knockout_bracket_page():
