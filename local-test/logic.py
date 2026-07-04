@@ -4,7 +4,7 @@ Uses Supabase (PostgreSQL) for persistent cloud storage.
 """
 import streamlit as st
 from supabase import create_client, Client
-from data import GROUPS, GROUP_MATCHES, KNOCKOUT_R32_SLOTS, R32_OVERRIDES, R16_OVERRIDES
+from data import GROUPS, GROUP_MATCHES, KNOCKOUT_R32_SLOTS
 
 
 def get_supabase() -> Client:
@@ -107,11 +107,8 @@ def get_knockout_teams_from_official() -> list:
 
     r32_matchups = []
     for slot_label, source_a, source_b in KNOCKOUT_R32_SLOTS:
-        if slot_label in R32_OVERRIDES:
-            team_a, team_b = R32_OVERRIDES[slot_label]
-        else:
-            team_a = _resolve_source(source_a, group_positions, best_third)
-            team_b = _resolve_source(source_b, group_positions, best_third)
+        team_a = _resolve_source(source_a, group_positions, best_third)
+        team_b = _resolve_source(source_b, group_positions, best_third)
         r32_matchups.append((slot_label, team_a, team_b))
 
     return r32_matchups
@@ -162,13 +159,13 @@ def calculate_user_total(username: str) -> dict:
     ko_resp = sb.table("knockout_predictions").select("round, match_index, field, value").eq("username", username).execute()
     ko_preds = {}
     for r in ko_resp.data:
-        ko_preds[(r["round"], int(r["match_index"]), r["field"])] = r["value"]
+        ko_preds[(r["round"], r["match_index"], r["field"])] = r["value"]
 
     official_resp = sb.table("official_results").select("match_id, home_score, away_score").execute()
     official = {r["match_id"]: (r["home_score"], r["away_score"]) for r in official_resp.data}
 
     ko_official_resp = sb.table("official_knockout_results").select("round, match_index, home_score, away_score").execute()
-    ko_official = {(r["round"], int(r["match_index"])): (r["home_score"], r["away_score"]) for r in ko_official_resp.data}
+    ko_official = {(r["round"], r["match_index"]): (r["home_score"], r["away_score"]) for r in ko_official_resp.data}
 
     group_total = group_exact = group_correct = group_wrong = 0
     group_details = []
@@ -296,27 +293,23 @@ def is_locked(phase: str = "group") -> bool:
     from datetime import datetime, timezone, timedelta
     eastern = timezone(timedelta(hours=-4))
     now = datetime.now(eastern)
+    if phase == "group":
+        if now >= datetime(2026, 6, 11, 14, 58, tzinfo=eastern):
+            return True
+    if phase == "knockout":
+        if now >= datetime(2026, 6, 28, 14, 58, tzinfo=eastern):
+            return True
     sb = get_supabase()
     resp = sb.table("settings").select("value").eq("key", f"locked_{phase}").execute()
-    # If admin has explicitly set a value, respect it (allows admin override)
     if resp.data:
         return resp.data[0]["value"] == "1"
-    # Default auto-lock by date if no explicit setting
-    if phase == "group" and now >= datetime(2026, 6, 11, 14, 58, tzinfo=eastern):
-        return True
-    if phase == "knockout" and now >= datetime(2026, 6, 28, 14, 58, tzinfo=eastern):
-        return True
     return False
 
 
 def is_knockout_open() -> bool:
-    """For Option 2 (Knockout Reset): knockout predictions open Jun 27 11:30 PM ET."""
-    from datetime import datetime, timezone, timedelta
-    eastern = timezone(timedelta(hours=-4))
-    now = datetime.now(eastern)
-    open_time = datetime(2026, 6, 27, 23, 30, tzinfo=eastern)
-    lock_time = datetime(2026, 6, 28, 14, 58, tzinfo=eastern)
-    return open_time <= now < lock_time
+    """Knockout predictions are open when the active round bracket is fully known.
+    LOCAL TEST: Always open for testing."""
+    return True
 
 
 def get_knockout_mode() -> str:
