@@ -1,9 +1,0 @@
-World cup 2026 pool
-
-publishable key sb_publishable_-YrhmD3r4CUZmyXjaOrncQ_w1qCqmPo
-
-secret key sb_secret_vFB9yYJ_rDrXA0C14qBqyg_78dVNf-g
-
-API URL https://uzxjxeanpejyqhuxeqlq.supabase.co/rest/v1/
-
-API anon public key eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6eGp4ZWFucGVqeXFodXhlcWxxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMDEyMzEsImV4cCI6MjA5NTg3NzIzMX0.fHnIb3O4YagoTw4a-kyHlvy8xcD0-rQNBw7AoMCNQG0
